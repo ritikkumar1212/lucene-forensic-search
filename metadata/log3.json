@@ -1,0 +1,21 @@
+{
+  "path": "/media/ritik/data1/lucene-search/lucene-search/evidence/log3.txt",
+  "name": "log3.txt",
+  "extension": ".txt",
+  "is_file": true,
+  "is_directory": false,
+  "size_bytes": 34,
+  "size_human": "34 Bytes",
+  "time_modified": "2026-06-23 08:20:17 UTC",
+  "time_accessed": "2026-06-23 08:20:25 UTC",
+  "time_ctime": "2026-06-23 08:20:17 UTC",
+  "platform": "Linux",
+  "is_readable": true,
+  "is_writable": true,
+  "format": "Text",
+  "author": "unknown",
+  "created": "unavailable",
+  "modified": "2026-06-23",
+  "keywords_detected": [],
+  "risk_level": "Low"
+}

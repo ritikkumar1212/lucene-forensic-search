@@ -1,0 +1,24 @@
+{
+  "path": "/media/ritik/data1/lucene-search/lucene-search/evidence/log4.txt",
+  "name": "log4.txt",
+  "extension": ".txt",
+  "is_file": true,
+  "is_directory": false,
+  "size_bytes": 48,
+  "size_human": "48 Bytes",
+  "time_modified": "2026-06-27 08:20:18 UTC",
+  "time_accessed": "2026-06-27 08:20:30 UTC",
+  "time_ctime": "2026-06-27 08:20:18 UTC",
+  "platform": "Linux",
+  "is_readable": true,
+  "is_writable": true,
+  "format": "Text",
+  "author": "unknown",
+  "created": "unavailable",
+  "modified": "2026-06-27",
+  "keywords_detected": [
+    "login",
+    "suspicious"
+  ],
+  "risk_level": "High"
+}

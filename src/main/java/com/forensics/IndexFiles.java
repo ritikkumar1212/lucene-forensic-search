@@ -1,18 +1,48 @@
 package com.forensics;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.*;
-import org.apache.lucene.index.*;
-import org.apache.lucene.store.*;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.StoredField;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.MessageDigest;
+import java.util.Locale;
 
 public class IndexFiles {
 
-    public static String getSHA256(File file) throws Exception {
+    private static String normalize(String value) {
+        if (value == null) return "";
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String stripExtensionDot(String ext) {
+        if (ext == null) return "";
+        String v = ext.trim().toLowerCase(Locale.ROOT);
+        if (v.startsWith(".")) {
+            v = v.substring(1);
+        }
+        return v;
+    }
+
+    private static String getExtension(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        if (dot < 0 || dot == fileName.length() - 1) {
+            return "";
+        }
+        return stripExtensionDot(fileName.substring(dot));
+    }
+
+    private static String sha256(File file) throws Exception {
         byte[] fileBytes = Files.readAllBytes(file.toPath());
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hashBytes = digest.digest(fileBytes);
@@ -21,56 +51,64 @@ public class IndexFiles {
         for (byte b : hashBytes) {
             sb.append(String.format("%02x", b));
         }
-
         return sb.toString();
     }
 
     public static void main(String[] args) throws Exception {
-        Directory dir = FSDirectory.open(Paths.get("index"));
+        Path indexPath = Paths.get("index");
+        Directory dir = FSDirectory.open(indexPath);
         StandardAnalyzer analyzer = new StandardAnalyzer();
 
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
-        config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
-
-        IndexWriter writer = new IndexWriter(dir, config);
+        config.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
 
         File folder = new File("evidence");
-
-        for (File file : folder.listFiles()) {
-            if (!file.isFile()) continue;
-
-            String content = new String(Files.readAllBytes(file.toPath()));
-            String sha256 = getSHA256(file);
-
-            String fileName = file.getName();
-
-            String extension = "";
-            int dotIndex = fileName.lastIndexOf(".");
-            if (dotIndex > 0) {
-                extension = fileName.substring(dotIndex + 1).toLowerCase();
-            }
-
-            Document doc = new Document();
-
-            // Content
-            doc.add(new TextField("content", content, Field.Store.YES));
-
-            // Basic file info
-            doc.add(new StringField("filename", fileName, Field.Store.YES));
-            doc.add(new StringField("filepath", file.getAbsolutePath(), Field.Store.YES));
-            doc.add(new StringField("extension", extension, Field.Store.YES));
-
-            // Forensic metadata
-            doc.add(new StoredField("filesize", file.length()));
-            doc.add(new StoredField("lastModified", file.lastModified()));
-            doc.add(new StringField("sha256", sha256, Field.Store.YES));
-
-            writer.addDocument(doc);
-
-            System.out.println("Indexed: " + fileName);
+        if (!folder.exists() || !folder.isDirectory()) {
+            System.err.println("Evidence folder not found: " + folder.getAbsolutePath());
+            return;
         }
 
-        writer.close();
-        System.out.println("Indexing complete.");
+        try (IndexWriter writer = new IndexWriter(dir, config)) {
+            File[] files = folder.listFiles();
+            if (files == null) {
+                System.err.println("No files found inside evidence folder.");
+                return;
+            }
+
+            for (File file : files) {
+                if (!file.isFile()) continue;
+
+                String originalName = file.getName();
+                String originalPath = file.getAbsolutePath();
+                String content = Files.readString(file.toPath());
+                String hash = sha256(file);
+                String extension = getExtension(originalName);
+
+                Document doc = new Document();
+                doc.add(new StringField("doc_type", "evidence", Field.Store.YES));
+
+                // Searchable exact fields
+                doc.add(new StringField("filename", normalize(originalName), Field.Store.YES));
+                doc.add(new StringField("path", normalize(originalPath), Field.Store.YES));
+                doc.add(new StringField("extension", extension, Field.Store.YES));
+                doc.add(new StringField("sha256", hash, Field.Store.YES));
+
+                // Display fields
+                doc.add(new StoredField("filename_display", originalName));
+                doc.add(new StoredField("path_display", originalPath));
+
+                // Full text content
+                doc.add(new TextField("content", content, Field.Store.YES));
+
+                // Basic filesystem metadata
+                doc.add(new StoredField("filesize", file.length()));
+                doc.add(new StoredField("lastModified", file.lastModified()));
+
+                writer.addDocument(doc);
+                System.out.println("Indexed: " + originalName);
+            }
+        }
+
+        System.out.println("Evidence indexing complete.");
     }
 }
